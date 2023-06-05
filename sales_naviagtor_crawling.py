@@ -23,25 +23,15 @@ def save_cookie(driver, path):
 
 
 
-# def get_companies_new():
-#     alll_comapnies = driver.find_elements(By.XPATH, '//a[@class="app-aware-link "]')
-#     alll_comapnies[0].send_keys(Keys.PAGE_DOWN)
-#     alll_comapnies[0].send_keys(Keys.PAGE_DOWN)
-#     alll_comapnies[0].send_keys(Keys.PAGE_DOWN)
-#
-#     for aa in alll_comapnies:
-#         if aa.text!='':
-#             companies_list.append(aa.text)
-        # print(aa.text)
 
-def loggin(driver,userr,passs):
+def login(driver,userr,passs):
     driver.get("https://linkedin.com/login")
     # waiting for the page to load
     time.sleep(5)
     # #entering username
     username=driver.find_element(By.XPATH, '//input[@id="username"]')
     username.send_keys(userr)
-    namee=parameters.username.split('@')[0]
+    namee=userr.split('@')[0]
     # entering  password
     password = driver.find_element(By.XPATH, '//input[@id="password"]')
     password.send_keys(passs)
@@ -56,96 +46,72 @@ def loggin(driver,userr,passs):
 def get_user_link(driver,compannys):
     c_list=list(map(lambda x: x.lower(),compannys))
     for m in range(0,101):
-        for i in range(0,10):
-            alll_users = driver.find_elements(By.XPATH, '//div[@class="artdeco-entity-lockup__content ember-view"]')
-            # try:
-            (alll_users[-1]).location_once_scrolled_into_view
-            # except:
-            #     pass
-
-
-            for a in alll_users:
-                full_user = []
-                try:
-                    nn2 = a.find_element(By.XPATH, './/div[@class="artdeco-entity-lockup__subtitle ember-view t-14"]')
-                    # if (nn2.find_element(By.XPATH, 'a').text).lower() in c_list:
-                    nn = a.find_element(By.XPATH, './/div[@class="artdeco-entity-lockup__title ember-view"]')
-
-                    # full_user.append(a.find_element(By.TAG_NAME,'a').get_attribute('href'))
-                    full_user.append(nn.find_element(By.TAG_NAME, 'a').get_attribute('href'))
-                    full_user.append(nn2.find_element(By.XPATH, 'a').text)
-                    full_user.append(nn2.find_element(By.XPATH, 'a').get_attribute('href'))
-                    if full_user not in users_list:
-
-                        users_list.append(full_user)
-                except:
-                    pass
         try:
-            driver.find_element(By.XPATH, '//button[@aria-label="Next"]').click()
+            for i in range(0,10):
+                alll_users = driver.find_elements(By.XPATH, '//div[@class="artdeco-entity-lockup__content ember-view"]')
+                (alll_users[-1]).location_once_scrolled_into_view
+
+                for a in alll_users:
+                    full_user = []
+                    try:
+                        nn2 = a.find_element(By.XPATH, './/div[@class="artdeco-entity-lockup__subtitle ember-view t-14"]')
+                        nn = a.find_element(By.XPATH, './/div[@class="artdeco-entity-lockup__title ember-view"]')
+                        full_user.append(nn.find_element(By.TAG_NAME, 'a').get_attribute('href'))
+                        full_user.append(nn2.find_element(By.XPATH, 'a').text)
+                        full_user.append(nn2.find_element(By.XPATH, 'a').get_attribute('href'))
+                        if full_user not in users_list:
+
+                            users_list.append(full_user)
+                    except:
+                        pass
+            try:
+                driver.find_element(By.XPATH, '//button[@aria-label="Next"]').click()
+            except:
+                break
+            time.sleep(10)
         except:
-            break
-        time.sleep(10)
+            pass
 
 
-# def get_companies(vv):
-#     element = driver.find_element(By.XPATH,
-#                                   '//a[@class="job-card-container__link job-card-container__company-name ember-view"]')
-#     if vv == 'yes':
-#         element.send_keys(Keys.TAB)
-#     element.send_keys(Keys.PAGE_DOWN)
-#     element.send_keys(Keys.PAGE_DOWN)
-#     element.send_keys(Keys.PAGE_DOWN)
-#     element.send_keys(Keys.PAGE_DOWN)
-#     element.send_keys(Keys.PAGE_DOWN)
-#     time.sleep(4)
-#
-#     companies = driver.find_elements(By.XPATH,
-#                                      '//a[@class="job-card-container__link job-card-container__company-name ember-view"]')
-#     for c in companies:
-#         companies_list.append(c.text)
 
-
-def main(search,outt):
+def main(search,out,username,password):
     driver = webdriver.Chrome(ChromeDriverManager().install())
 
     driver.get('https://www.linkedin.com')
     time.sleep(5)
     # parameters
     try:
-        user=parameters.username.split('@')
+        user=username.split('@')
         driver=load_cookie(driver,user)
     except:
-        loggin(driver,parameters.username,parameters.password)
-    # driver=load_cookie(driver)
+        login(driver,username,password)
     time.sleep(random.randint(5,8))
     driver.get(search)
     time.sleep(10)
-    # geography=driver.find_element(By.XPATH,'//fieldset[@title="Geography"]')
-    # time.sleep(3)
-    # geography.send_keys(Keys.PAGE_UP)
-    # geography.find_element(By.XPATH,'.//button[@type="button"]').click()
-    # geography=driver.find_element(By.XPATH,'//input[@placeholder="Add locations"]')
-    # geography.send_keys('United states')
-    # time.sleep(30)
-
-
-    # time.sleep(10)
 
     time.sleep(1)
-    # for i in range(0,8):
     get_user_link(driver,companies_list)
     time.sleep(1)
 
     time.sleep(7)
 
-    print(len(users_list))
-    print(users_list)
     dfff=pd.DataFrame(users_list)
-    dfff.to_csv(outt+'.csv',index=False,header=False)
+    dfff.to_csv(out+'.csv',index=False,header=False)
 
+def getting_input_data(SHEET_ID,SHEET_NAME):
+    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
+    df = pd.read_csv(url)
+    username=df.loc[df['keys'] == 'username', 'value'].iloc[0]
+    password=df.loc[df['keys'] == 'password', 'value'].iloc[0]
+    sales_urls=df.loc[df['keys'] == 'sales_navigator_url', 'value'].iloc[0]
+    return username,password,sales_urls
 
 
 if __name__ == "__main__":
-    search_link='https://www.linkedin.com/sales/search/people?query=(recentSearchParam%3A(id%3A2163387729%2CdoLogHistory%3Atrue)%2Cfilters%3AList((type%3ACOMPANY_HEADCOUNT%2Cvalues%3AList((id%3AD%2Ctext%3A51-200%2CselectionType%3AINCLUDED)%2C(id%3AE%2Ctext%3A201-500%2CselectionType%3AINCLUDED)))%2C(type%3ACOMPANY_HEADQUARTERS%2Cvalues%3AList((id%3A102748797%2Ctext%3ATexas%252C%2520United%2520States%2CselectionType%3AINCLUDED)))%2C(type%3ATITLE%2Cvalues%3AList((id%3A8%2Ctext%3AChief%2520Executive%2520Officer%2CselectionType%3AINCLUDED))%2CselectedSubFilter%3ACURRENT)%2C(type%3AINDUSTRY%2Cvalues%3AList((id%3A4%2Ctext%3ASoftware%2520Development%2CselectionType%3AINCLUDED)%2C(id%3A96%2Ctext%3AIT%2520Services%2520and%2520IT%2520Consulting%2CselectionType%3AINCLUDED)))))&sessionId=xVW%2FE%2FYTSo%2BsEZ9VMHQwDg%3D%3D&viewAllFilters=true'
+    SHEET_ID = '1NvcHCO2laW69W_Eqb9bWcE5S7PkO0g5i3atsdCm1eDA'
+    SHEET_NAME = 'sheet1'
+    username,password,search_link=getting_input_data(SHEET_ID,SHEET_NAME)
+    print(username,password,search_link)
+    # search_link='https://www.linkedin.com/sales/search/people?query=(recentSearchParam%3A(id%3A2163387729%2CdoLogHistory%3Atrue)%2Cfilters%3AList((type%3ACOMPANY_HEADCOUNT%2Cvalues%3AList((id%3AD%2Ctext%3A51-200%2CselectionType%3AINCLUDED)%2C(id%3AE%2Ctext%3A201-500%2CselectionType%3AINCLUDED)))%2C(type%3ACOMPANY_HEADQUARTERS%2Cvalues%3AList((id%3A102748797%2Ctext%3ATexas%252C%2520United%2520States%2CselectionType%3AINCLUDED)))%2C(type%3ATITLE%2Cvalues%3AList((id%3A8%2Ctext%3AChief%2520Executive%2520Officer%2CselectionType%3AINCLUDED))%2CselectedSubFilter%3ACURRENT)%2C(type%3AINDUSTRY%2Cvalues%3AList((id%3A4%2Ctext%3ASoftware%2520Development%2CselectionType%3AINCLUDED)%2C(id%3A96%2Ctext%3AIT%2520Services%2520and%2520IT%2520Consulting%2CselectionType%3AINCLUDED)))))&sessionId=xVW%2FE%2FYTSo%2BsEZ9VMHQwDg%3D%3D&viewAllFilters=true'
     output='result.csv'
-    main(search_link,output)
+    main(search_link,output,username,password)
