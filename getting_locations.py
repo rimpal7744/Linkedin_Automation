@@ -4,10 +4,7 @@ from selenium import webdriver
 import time
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-
 import random
-
-import parameters
 
 users_list = []
 
@@ -24,14 +21,14 @@ def save_cookie(driver, path):
         pickle.dump(driver.get_cookies(), filehandler)
 
 
-def loggin(driver,userr,passw):
+def login(driver,userr,passw):
     driver.get("https://linkedin.com/login")
     # waiting for the page to load
     time.sleep(5)
     # #entering username
     username=driver.find_element(By.XPATH, '//input[@id="username"]')
     username.send_keys(userr)
-    namee=parameters.username.split('@')[0]
+    namee=userr.split('@')[0]
     # entering  password
     password = driver.find_element(By.XPATH, '//input[@id="password"]')
     password.send_keys(passw)
@@ -65,7 +62,6 @@ def get_companies_info(driver):
     Size=''
     headq=''
     Industry=''
-    print(all_data)
     for aa in all_data:
         if aa=='Website':
             website=all_data[all_data.index(aa)+1]
@@ -98,7 +94,6 @@ def get_companies_info(driver):
 
 def getting_links(df):
     companies_list=df.company_url.tolist()
-    print(companies_list)
     updated=[]
     for c in companies_list:
         c=c.replace('/sales','')
@@ -106,17 +101,17 @@ def getting_links(df):
         updated.append(c)
     return updated
 
-def main(df,outt):
+def main(df,outt,username,password):
     driver = webdriver.Chrome(ChromeDriverManager().install())
     updated=getting_links(df)
     df['linkedin_url_comapnies']=updated
     driver.get('https://www.linkedin.com')
     time.sleep(5)
     try:
-        user=parameters.username.split('@')
+        user=username.split('@')
         driver=load_cookie(driver,user)
     except:
-        loggin(driver,parameters.username,parameters.password)
+        login(driver,username,password)
     time.sleep(3)
 
     time.sleep(3)
@@ -145,11 +140,8 @@ def main(df,outt):
             us_loc=us_locationn()
 
             for p in people_list:
-                print(p)
                 for m in us_loc:
                     if m in p:
-                        # res.remove(i)
-                        print(m)
                         overseas.append(p)
                         break
         final = set(people_list) - set(overseas)
@@ -157,14 +149,22 @@ def main(df,outt):
             employess.append([company,i,industry,headq,Size,founded,Phone,website,ceo,final])
         time.sleep(random.randint(4,8))
 
-        dfff=pd.DataFrame(employess)
-        dfff.to_csv(outt+'.csv',mode='a',index=False,header=False)
+        final_df=pd.DataFrame(employess)
+        final_df.to_csv(outt+'.csv',mode='a',index=False,header=False)
 
-
+def getting_input_data(SHEET_ID,SHEET_NAME):
+    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
+    df = pd.read_csv(url)
+    username=df.loc[df['keys'] == 'username', 'value'].iloc[0]
+    password=df.loc[df['keys'] == 'password', 'value'].iloc[0]
+    return username,password
 
 
 if __name__ == "__main__":
-    input_path='ITandsoftware.csv'
-    inputt=pd.read_csv(input_path)
-    output='result.csv'
-    main(inputt,output)
+    SHEET_ID = '1NvcHCO2laW69W_Eqb9bWcE5S7PkO0g5i3atsdCm1eDA'
+    SHEET_NAME = 'sheet1'
+    input_path='result.csv'
+    input_data=pd.read_csv(input_path)
+    username,password=getting_input_data(SHEET_ID,SHEET_NAME)
+    output='result_with_companies_data.csv'
+    main(input_data,output,username,password)
