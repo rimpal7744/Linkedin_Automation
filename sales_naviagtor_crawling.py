@@ -5,9 +5,6 @@ import pandas as pd
 from selenium import webdriver
 import time
 from selenium.webdriver.common.by import By
-import paramters
-# import parameters
-from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
 
 companies_list=[]
