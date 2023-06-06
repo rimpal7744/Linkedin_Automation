@@ -6,7 +6,8 @@ from selenium import webdriver
 import time
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 companies_list=[]
 users_list = []
 
@@ -45,9 +46,9 @@ def login(driver,userr,passs):
 
 def get_user_link(driver,compannys):
     c_list=list(map(lambda x: x.lower(),compannys))
-    for m in range(0,101):
+    for m in range(0,5):
         try:
-            for i in range(0,10):
+            for i in range(0,5):
                 alll_users = driver.find_elements(By.XPATH, '//div[@class="artdeco-entity-lockup__content ember-view"]')
                 (alll_users[-1]).location_once_scrolled_into_view
 
@@ -72,16 +73,35 @@ def get_user_link(driver,compannys):
         except:
             pass
 
+def add_google_sheet(header,records):
+    # define the scope
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+
+    # add credentials to the account
+    creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+
+    # authorize the clientsheet
+    client = gspread.authorize(creds)
+    # spreadsheet = client.create('mysheet2')
+    # get the instance of the Spreadsheet
+    sheet = client.open('mysheet1')
+    # get the first sheet of the Spreadsheet
+    sheet_instance = sheet.get_worksheet(0)
+    # get the total number of columns
+    sheet_instance.clear()
+    sheet_instance.insert_row(header, 1)  # Write the header row
+    sheet_instance.insert_rows(records, 2)
 
 
-def main(search,out,username,password):
+
+def main(search,username,password):
     driver = webdriver.Chrome(ChromeDriverManager().install())
 
     driver.get('https://www.linkedin.com')
     time.sleep(5)
     # parameters
     try:
-        user=username.split('@')
+        user=username.split('@')[0]
         driver=load_cookie(driver,user)
     except:
         login(driver,username,password)
@@ -96,7 +116,10 @@ def main(search,out,username,password):
     time.sleep(7)
 
     dfff=pd.DataFrame(users_list)
-    dfff.to_csv(out+'.csv',index=False,header=False)
+    header =['Profile_url','Company_name','Company_url']
+    records = dfff.values.tolist()
+    add_google_sheet(header,records)
+
 
 def getting_input_data(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
@@ -113,5 +136,5 @@ if __name__ == "__main__":
     username,password,search_link=getting_input_data(SHEET_ID,SHEET_NAME)
     print(username,password,search_link)
     # search_link='https://www.linkedin.com/sales/search/people?query=(recentSearchParam%3A(id%3A2163387729%2CdoLogHistory%3Atrue)%2Cfilters%3AList((type%3ACOMPANY_HEADCOUNT%2Cvalues%3AList((id%3AD%2Ctext%3A51-200%2CselectionType%3AINCLUDED)%2C(id%3AE%2Ctext%3A201-500%2CselectionType%3AINCLUDED)))%2C(type%3ACOMPANY_HEADQUARTERS%2Cvalues%3AList((id%3A102748797%2Ctext%3ATexas%252C%2520United%2520States%2CselectionType%3AINCLUDED)))%2C(type%3ATITLE%2Cvalues%3AList((id%3A8%2Ctext%3AChief%2520Executive%2520Officer%2CselectionType%3AINCLUDED))%2CselectedSubFilter%3ACURRENT)%2C(type%3AINDUSTRY%2Cvalues%3AList((id%3A4%2Ctext%3ASoftware%2520Development%2CselectionType%3AINCLUDED)%2C(id%3A96%2Ctext%3AIT%2520Services%2520and%2520IT%2520Consulting%2CselectionType%3AINCLUDED)))))&sessionId=xVW%2FE%2FYTSo%2BsEZ9VMHQwDg%3D%3D&viewAllFilters=true'
-    output='result.csv'
-    main(search_link,output,username,password)
+    # output='result.csv'
+    main(search_link,username,password)

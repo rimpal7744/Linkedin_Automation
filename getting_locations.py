@@ -1,3 +1,4 @@
+import json
 import pickle
 import pandas as pd
 from selenium import webdriver
@@ -5,7 +6,8 @@ import time
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import random
-
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 users_list = []
 
 
@@ -93,7 +95,7 @@ def get_companies_info(driver):
     return website,Phone,Size,founded,headq,Industry
 
 def getting_links(df):
-    companies_list=df.company_url.tolist()
+    companies_list=df.Company_url.tolist()
     updated=[]
     for c in companies_list:
         c=c.replace('/sales','')
@@ -101,56 +103,101 @@ def getting_links(df):
         updated.append(c)
     return updated
 
-def main(df,outt,username,password):
+
+def add_to_googlesheet(header,record):
+    # define the scope
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+
+    # add credentials to the account
+    creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+
+    # authorize the clientsheet
+    client = gspread.authorize(creds)
+    # spreadsheet = client.create('mysheet2')
+    # get the instance of the Spreadsheet
+    sheet = client.open('mysheet1')
+    # get the first sheet of the Spreadsheet
+    sheet_instance = sheet.get_worksheet(1)
+    # get the total number of columns
+
+    if header=='':
+        sheet_instance.insert_row(record, 2)  # Write the header row
+
+    if header !='':
+        # print(record)
+        sheet_instance.clear()
+        sheet_instance.insert_row(header,1)
+        sheet_instance.insert_row(record, 2)
+
+
+
+def main(df,username,password):
     driver = webdriver.Chrome(ChromeDriverManager().install())
     updated=getting_links(df)
-    df['linkedin_url_comapnies']=updated
+    df['Company_url']=updated
     driver.get('https://www.linkedin.com')
     time.sleep(5)
     try:
-        user=username.split('@')
+        user=username.split('@')[0]
         driver=load_cookie(driver,user)
     except:
         login(driver,username,password)
     time.sleep(3)
 
     time.sleep(3)
-
+    count=1
     for i in updated:
-        employess = []
-        driver.get(i+'/about')
-        time.sleep(random.randint(4,7))
-        website,Phone,Size,founded,headq,industry=get_companies_info(driver)
-        alltabs=driver.find_elements(By.XPATH,'//a[@class="ember-view pv3 ph4 t-16 t-bold t-black--light org-page-navigation__item-anchor "]')
-        for aaaa in alltabs:
-            if aaaa.text=='People':
-                aaaa.click()
-        time.sleep(random.randint(4, 7))
-        geography=driver.find_element(By.XPATH,'//button[@aria-label="Show more people filters"]')
-        geography.click()
-        time.sleep(random.randint(4,6))
-        people=driver.find_element(By.XPATH,'//div[@class="insight-container"]')
-        people_list = (people.text).split('\n')
-        ceo=df.loc[df['linkedin_url_comapnies']==str(i),'ceo'].iloc[0]
-        company=df.loc[df['linkedin_url_comapnies']==str(i),'company'].iloc[0]
-        overseas = []
-        if len(people_list)>1:
-            people_list=people_list[2:]
-            people_list = [x.lower() for x in people_list]
-            us_loc=us_locationn()
+        try:
+            employess = []
+            driver.get(i+'/about')
+            time.sleep(random.randint(4,7))
+            website,Phone,Size,founded,headq,industry=get_companies_info(driver)
+            alltabs=driver.find_elements(By.XPATH,'//a[@class="ember-view pv3 ph4 t-16 t-bold t-black--light org-page-navigation__item-anchor "]')
+            for aaaa in alltabs:
+                if aaaa.text=='People':
+                    aaaa.click()
+            time.sleep(random.randint(4, 7))
+            geography=driver.find_element(By.XPATH,'//button[@aria-label="Show more people filters"]')
+            geography.click()
+            time.sleep(random.randint(4,6))
+            people=driver.find_element(By.XPATH,'//div[@class="insight-container"]')
+            people_list = (people.text).split('\n')
+            ceo=df.loc[df['Company_url']==str(i),'Profile_url'].iloc[0]
+            company=df.loc[df['Company_url']==str(i),'Company_name'].iloc[0]
+            overseas = []
+            if len(people_list)>1:
+                people_list=people_list[2:]
+                people_list = [x.lower() for x in people_list]
+                us_loc=us_locationn()
 
-            for p in people_list:
-                for m in us_loc:
-                    if m in p:
-                        overseas.append(p)
-                        break
-        final = set(people_list) - set(overseas)
-        if len(final)>=1:
-            employess.append([company,i,industry,headq,Size,founded,Phone,website,ceo,final])
-        time.sleep(random.randint(4,8))
+                for p in people_list:
+                    for m in us_loc:
+                        if m in p:
+                            overseas.append(p)
+                            break
+            final = list(set(people_list) - set(overseas))
+            if 'toggle off' in final:
+                final.remove('toggle off')
 
-        final_df=pd.DataFrame(employess)
-        final_df.to_csv(outt+'.csv',mode='a',index=False,header=False)
+            if len(final)>=1:
+                final=json.dumps(final)
+                employess.append([company,i,industry,headq,Size,founded,Phone,website,ceo,final,''])
+            time.sleep(random.randint(4,8))
+            if len(employess)>0:
+                if count==1:
+                    header=['Company','Companyurl','Industry','Headquators','Size','Founded','Phone','Website','Ceo_url','final','Message']
+                    record=list(employess[0])
+                    print(record,'hhh')
+                    add_to_googlesheet(header, record)
+                    count+=1
+                else:
+                    header=''
+                    record=list(employess[0])
+                    add_to_googlesheet(header,record)
+                    count+=1
+        except:
+            pass
+
 
 def getting_input_data(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
@@ -159,12 +206,19 @@ def getting_input_data(SHEET_ID,SHEET_NAME):
     password=df.loc[df['keys'] == 'password', 'value'].iloc[0]
     return username,password
 
+def getting_input_dataframe(SHEET_ID,SHEET_NAME):
+    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
+    df = pd.read_csv(url)
+    return df
+
 
 if __name__ == "__main__":
+    #Google sheet id and name having username and password
     SHEET_ID = '1NvcHCO2laW69W_Eqb9bWcE5S7PkO0g5i3atsdCm1eDA'
     SHEET_NAME = 'sheet1'
-    input_path='result.csv'
-    input_data=pd.read_csv(input_path)
+    #Google sheet id and name having extracted links
+    input_sheetid='1i1XNuxrmtAxJo3fDli_ex3LRb_3rnFRcry3n6_LErig'
+    input_sheet_number='sheet1'
     username,password=getting_input_data(SHEET_ID,SHEET_NAME)
-    output='result_with_companies_data.csv'
-    main(input_data,output,username,password)
+    input_data=getting_input_dataframe(input_sheetid,input_sheet_number)
+    main(input_data,username,password)
