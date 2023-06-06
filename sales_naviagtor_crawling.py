@@ -48,7 +48,7 @@ def get_user_link(driver,compannys):
     c_list=list(map(lambda x: x.lower(),compannys))
     for m in range(0,5):
         try:
-            for i in range(0,5):
+            for i in range(0,101):
                 alll_users = driver.find_elements(By.XPATH, '//div[@class="artdeco-entity-lockup__content ember-view"]')
                 (alll_users[-1]).location_once_scrolled_into_view
 
