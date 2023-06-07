@@ -3,11 +3,13 @@ import pandas as pd
 from selenium import webdriver
 import time
 from selenium.webdriver.common.by import By
-import parameters
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 driver = webdriver.Chrome(ChromeDriverManager().install())
 users_list = []
-
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 def load_cookie(driver,username):
     # loading cookies with username
     path = username.split('@')[0]+'.pkl'
@@ -41,7 +43,59 @@ def login(driver,user_name,pass_word):
     path=namee+'.pkl'
     save_cookie(driver,path)
 
+def add_to_google_sheet(header,record):
+    # define the scope
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+
+    # add credentials to the account
+    creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+
+    # authorize the clientsheet
+    client = gspread.authorize(creds)
+    # spreadsheet = client.create('mysheet2')
+    # get the instance of the Spreadsheet
+    sheet = client.open('mysheet2')
+    # get the first sheet of the Spreadsheet
+    sheet_instance = sheet.get_worksheet(3)
+    row = sheet_instance.row_values(1)
+    if row==header:
+        sheet_instance.insert_row(record, 2)
+    elif row!=header:
+        sheet_instance.insert_row(header,1)
+        sheet_instance.insert_row(record,2)
+
+def withdraw_request(driver,username,password):
+    driver.get("https://linkedin.com")
+    try:
+        load_cookie(driver,username)
+    except:
+        login(driver,username,password)
+
+    time.sleep(4)
+    driver.get('https://www.linkedin.com/mynetwork/invitation-manager/sent/')
+    time.sleep(6)
+    data = driver.find_elements(By.XPATH, '//div[@class="invitation-card__details"]')
+    withdraw_buttons = driver.find_elements(By.XPATH, '//button[@class="artdeco-button artdeco-button--muted artdeco-button--3 artdeco-button--tertiary ember-view invitation-card__action-btn"]')
+
+    for full in data:
+        full_text = full.text.split('\n')
+        sent_time = full_text[4]
+        weeks_splited=sent_time.split('week')
+        if len(weeks_splited)>1:
+            if int(weeks_splited[0])>=1:
+                withdraw_buttons[data.index(full)].click()
+                time.sleep(5)
+                actions = ActionChains(driver)
+                actions.send_keys(Keys.TAB).perform()
+                actions.send_keys(Keys.TAB).perform()
+                actions.send_keys(Keys.TAB).perform()
+                time.sleep(10)
+                actions.send_keys(Keys.ENTER).perform()
+                time.sleep(10)
+
+
 def checking_connections(driver,links_list,names_list,username,password):
+
     driver.get("https://linkedin.com")
     try:
         load_cookie(driver,username)
@@ -61,9 +115,8 @@ def checking_connections(driver,links_list,names_list,username,password):
         if name in names_list:
             accepted_names.append(name)
 
-    for accept in accepted_names[4:]:
-        users_data = []
-        profile_link=links_list[names_list.index(accept)]
+    for user_name in accepted_names:
+        profile_link=links_list[names_list.index(user_name)]
         driver.get(profile_link)
         time.sleep(10)
 
@@ -74,26 +127,47 @@ def checking_connections(driver,links_list,names_list,username,password):
         for e in email:
             email_search=e.get_attribute('href')
             if str(email_search)[0:4]=='mail':
-                target_email=email_search
+                target_email=email_search[7:]
+                # print(target_email,'gggggg')
         driver.find_element(By.XPATH,'//button[@class="ember-view _button_ps32ck _small_ps32ck _primary_ps32ck _emphasized_ps32ck _left_ps32ck _container_iq15dg _message-cta_1xow7n _cta_1xow7n _medium-cta_1xow7n"]').click()
         time.sleep(3)
 
         time.sleep(5)
         driver.find_element(By.XPATH, '//textarea[@placeholder="Type your message here…"]').send_keys('Hi How are you?')
         time.sleep(5)
-        driver.find_element(By.XPATH, '//button[@aria-describedby="artdeco-hoverable-artdeco-gen-43"]').click()
+        # driver.find_element(By.XPATH, '//button[@aria-describedby="artdeco-hoverable-artdeco-gen-43"]').click()
         time.sleep(10)
-        users_data.append([accept, profile_link,target_email])
-        dff = pd.DataFrame(users_data)
-        dff.to_csv(r'data_files\message_sent\sent.csv', mode='a', index=False,
-                   header=False)
+        record=[user_name,profile_link,target_email]
+        header=['Name','Profile_link','Email']
+        add_to_google_sheet(header,record)
+
+def getting_input_data(SHEET_ID,SHEET_NAME):
+    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
+    df = pd.read_csv(url)
+    username=df.loc[df['keys'] == 'username', 'value'].iloc[0]
+    password=df.loc[df['keys'] == 'password', 'value'].iloc[0]
+    return username,password
+
+def getting_input_dataframe(SHEET_ID,SHEET_NAME):
+    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
+    df = pd.read_csv(url)
+    return df
+
 
 
 if __name__ == "__main__":
-    username=parameters.username
-    password=parameters.password
-    df = pd.read_csv(r'data_files\profiles_data\profiles1.csv')
+    # Google sheet id and name having username and password
+    SHEET_ID = '1NvcHCO2laW69W_Eqb9bWcE5S7PkO0g5i3atsdCm1eDA'
+    SHEET_NAME = 'sheet1'
+    # Google sheet id and name having extracted links
+    input_sheetid = '1ZyRVdZkn7zXxmu79D9LOR31piijIp0MzPf7J4cMnOs8'
+    input_sheet_number = 'sheet3'
+    # input_sheetid = '1i1XNuxrmtAxJo3fDli_ex3LRb_3rnFRcry3n6_LErig'
+    # input_sheet_number = 'sheet4'
     # print(df.columns)
-    links_list = df['links'].values.tolist()
+    username,password=getting_input_data(SHEET_ID,SHEET_NAME)
+    df=getting_input_dataframe(input_sheetid,input_sheet_number)
+    links_list = df['User_link'].values.tolist()
     name_list = df['Name'].values.tolist()
+    # withdraw_request(driver,username,password)
     checking_connections(driver,links_list,name_list,username,password)
