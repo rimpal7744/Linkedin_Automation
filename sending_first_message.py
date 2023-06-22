@@ -43,7 +43,7 @@ def login(driver,user_name,pass_word):
     path=namee+'.pkl'
     save_cookie(driver,path)
 
-def add_to_google_sheet(header,record):
+def add_to_google_sheet(header,record,out,out_number):
     # define the scope
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
@@ -54,9 +54,10 @@ def add_to_google_sheet(header,record):
     client = gspread.authorize(creds)
     # spreadsheet = client.create('mysheet2')
     # get the instance of the Spreadsheet
-    sheet = client.open('mysheet2')
-    # get the first sheet of the Spreadsheet
-    sheet_instance = sheet.get_worksheet(3)
+    sheet = client.open(str(out))
+    out_number=out_number.replace('sheet','')
+    current_number=int(out_number)-1
+    sheet_instance = sheet.get_worksheet(current_number)
     row = sheet_instance.row_values(1)
     if row==header:
         sheet_instance.insert_row(record, 2)
@@ -94,7 +95,7 @@ def withdraw_request(driver,username,password):
                 time.sleep(10)
 
 
-def checking_connections(driver,links_list,names_list,username,password):
+def checking_connections(driver,links_list,names_list,username,password,result_sheet,result_sheet_number):
 
     driver.get("https://linkedin.com")
     try:
@@ -139,14 +140,19 @@ def checking_connections(driver,links_list,names_list,username,password):
         time.sleep(10)
         record=[user_name,profile_link,target_email]
         header=['Name','Profile_link','Email']
-        add_to_google_sheet(header,record)
+        add_to_google_sheet(header,record,result_sheet,result_sheet_number)
 
 def getting_input_data(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
     df = pd.read_csv(url)
     username=df.loc[df['keys'] == 'username', 'value'].iloc[0]
     password=df.loc[df['keys'] == 'password', 'value'].iloc[0]
-    return username,password
+    sheetid = df.loc[df['keys'] == 'output_sheet_id', 'value'].iloc[0]
+    # input_sheet = df.loc[df['keys'] == 'second_crawler_saving_sheet_name', 'value'].iloc[0]
+    input_sheet_number = df.loc[df['keys'] == 'third_crawler_saving_sheet_number', 'value'].iloc[0]
+    result_sheet = df.loc[df['keys'] == 'fourth_crawler_saving_sheet_name', 'value'].iloc[0]
+    result_sheet_number = df.loc[df['keys'] == 'fourth_crawler_saving_sheet_number', 'value'].iloc[0]
+    return username,password,sheetid,input_sheet_number,result_sheet,result_sheet_number
 
 def getting_input_dataframe(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
@@ -157,17 +163,12 @@ def getting_input_dataframe(SHEET_ID,SHEET_NAME):
 
 if __name__ == "__main__":
     # Google sheet id and name having username and password
-    SHEET_ID = '1NvcHCO2laW69W_Eqb9bWcE5S7PkO0g5i3atsdCm1eDA'
+    SHEET_ID = '1l1Q2t81LLk-GB-9qtQyqSDezOxdkKb2hzYXHkjxm59E'
     SHEET_NAME = 'sheet1'
-    # Google sheet id and name having extracted links
-    input_sheetid = '1ZyRVdZkn7zXxmu79D9LOR31piijIp0MzPf7J4cMnOs8'
-    input_sheet_number = 'sheet3'
-    # input_sheetid = '1i1XNuxrmtAxJo3fDli_ex3LRb_3rnFRcry3n6_LErig'
-    # input_sheet_number = 'sheet4'
-    # print(df.columns)
-    username,password=getting_input_data(SHEET_ID,SHEET_NAME)
+
+    username,password,input_sheetid,input_sheet_number,result_sheet,result_sheet_number=getting_input_data(SHEET_ID,SHEET_NAME)
     df=getting_input_dataframe(input_sheetid,input_sheet_number)
     links_list = df['User_link'].values.tolist()
     name_list = df['Name'].values.tolist()
-    # withdraw_request(driver,username,password)
-    checking_connections(driver,links_list,name_list,username,password)
+    withdraw_request(driver,username,password)
+    checking_connections(driver,links_list,name_list,username,password,result_sheet,result_sheet_number)
