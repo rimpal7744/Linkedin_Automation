@@ -11,8 +11,13 @@ from oauth2client.service_account import ServiceAccountCredentials
 import random
 from datetime import datetime
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
+options = Options()
+options.add_argument('--no-sandbox')
+options.add_argument('--headless')
 
-driver = webdriver.Chrome(ChromeDriverManager().install())
+driver = webdriver.Chrome(options=options)
+# driver = webdriver.Chrome(ChromeDriverManager().install())
 users_list = []
 
 def load_cookie(driver,username):
@@ -33,7 +38,7 @@ def save_cookie(driver, path):
 def login(driver,user_name,pass_word):
     driver.get("://linkedin.com/login")
     # waiting for the page to load
-    time.sleep(5)
+    time.sleep(random.randint(4,8))
     # entering username
     username=driver.find_element(By.XPATH, '//input[@id="username"]')
 
@@ -42,16 +47,16 @@ def login(driver,user_name,pass_word):
     # entering  password
     password = driver.find_element(By.XPATH, '//input[@id="password"]')
     password.send_keys(pass_word)
-    time.sleep(4)
+    time.sleep(random.randint(4,8))
     driver.find_element(By.XPATH, '//button[@type="submit"]').click()
-    time.sleep(6)
+    time.sleep(random.randint(5,12))
     #saving login cookies
     path=namee+'.pkl'
     save_cookie(driver,path)
 
 
 def getting_info(user_link):
-    time.sleep(5)
+    time.sleep(random.randint(5,8))
     namee=driver.find_element(By.XPATH, '//h1[@data-anonymize="person-name"]').text
     headline=driver.find_element(By.XPATH, '//span[@data-anonymize="headline"]').text
     place=driver.find_element(By.XPATH, '//div[@class="_lockup-caption_sqh8tm _bodyText_1e5nen _default_1i6ulk _sizeSmall_1e5nen _lowEmphasis_1i6ulk"]').text
@@ -60,7 +65,7 @@ def getting_info(user_link):
     for s in show_moree:
         try:
             s.click()
-            time.sleep(random.randint(3,5))
+            time.sleep(random.randint(5,8))
         except:
             pass
 
@@ -81,7 +86,7 @@ def getting_info(user_link):
             emails=''
         period = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         Profile_data_list=[user_link,namee,headline,place,connections,emails,period]
-        time.sleep(random.randint(2,5))
+        time.sleep(random.randint(5,8))
         return Profile_data_list
 
 def add_to_googlesheet(record,header,out,out_number):
@@ -109,12 +114,13 @@ def add_to_googlesheet(record,header,out,out_number):
         sheet_instance.insert_row(record, 2)
 
 def sending_requests(driver,users_data,username,password,out_name,out_number):
-    print(users_data)
+    # print(users_data)
     driver.get("https://linkedin.com")
     try:
         load_cookie(driver,username)
     except:
         login(driver,username,password)
+    print('logged_in')
     time.sleep(4)
     try:
         with open(r'requests_sending.txt', 'r') as f:
@@ -124,6 +130,7 @@ def sending_requests(driver,users_data,username,password,out_name,out_number):
 
     for user_link in users_data[int(start_number):]:
         user_number=users_data.index(user_link)
+        print('Sending_connection_rrequest_to_user_number: '+str(user_number))
         with open(r'requests_sending.txt', 'w') as f:
             f.write(str(user_number))
         try:
@@ -138,13 +145,12 @@ def sending_requests(driver,users_data,username,password,out_name,out_number):
             if 'Connect — Pending' not in element.text.split('\n'):
 
                 element.send_keys(Keys.TAB)
-                time.sleep(3)
+                time.sleep(random.randint(3,5))
                 actions = ActionChains(driver)
                 actions.send_keys(Keys.ENTER).perform()
                 # element.send_keys(Keys.RETURN)
-                time.sleep(4)
+                time.sleep(random.randint(3,7))
                 # driver.find_element(By.XPATH,'//textarea[@id="connect-cta-form__invitation"]').send_keys('hello hows you?')
-                time.sleep(3)
                 # driver.find_element(By.XPATH,'//button[@class="button-primary-medium connect-cta-form__send"]').click()
                 if user_number==0:
                     # header=['User_link','Name','Headline','Location','Connections','Description','Email(if available)','Sent_time']

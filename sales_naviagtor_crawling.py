@@ -8,6 +8,10 @@ from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from selenium.webdriver.chrome.options import Options
+options = Options()
+options.add_argument('--no-sandbox')
+options.add_argument('--headless')
 companies_list=[]
 users_list = []
 
@@ -28,7 +32,7 @@ def save_cookie(driver, path):
 def login(driver,userr,passs):
     driver.get("https://linkedin.com/login")
     # waiting for the page to load
-    time.sleep(5)
+    time.sleep(random.randint(5,12))
     # #entering username
     username=driver.find_element(By.XPATH, '//input[@id="username"]')
     username.send_keys(userr)
@@ -36,10 +40,10 @@ def login(driver,userr,passs):
     # entering  password
     password = driver.find_element(By.XPATH, '//input[@id="password"]')
     password.send_keys(passs)
-    time.sleep(4)
+    time.sleep(random.randint(6,8))
     driver.find_element(By.XPATH, '//button[@type="submit"]').click()
 
-    time.sleep(6)
+    time.sleep(random.randint(6,15))
     path=namee+'.pkl'
     save_cookie(driver,path)
 
@@ -47,6 +51,7 @@ def login(driver,userr,passs):
 def get_user_link(driver,compannys):
     c_list=list(map(lambda x: x.lower(),compannys))
     for m in range(0,2):
+        print('Crawling from page = '+str(m+1))
         try:
             for i in range(0,5):
                 alll_users = driver.find_elements(By.XPATH, '//div[@class="artdeco-entity-lockup__content ember-view"]')
@@ -96,31 +101,33 @@ def add_google_sheet(header,records,out,number):
 
 
 def main(search,username,password,out,out_number):
-    driver = webdriver.Chrome(ChromeDriverManager().install())
-
+    # driver = webdriver.Chrome(ChromeDriverManager().install())
+    driver = webdriver.Chrome(options=options)
     driver.get('https://www.linkedin.com')
-    time.sleep(5)
+    time.sleep(random.randint(5,10))
     # parameters
     try:
         user=username.split('@')[0]
         driver=load_cookie(driver,user)
+        print('logged in from cookies')
     except:
         login(driver,username,password)
+        print('Logged In')
     time.sleep(random.randint(5,8))
     driver.get(search)
-    time.sleep(10)
+    time.sleep(random.randint(10,15))
 
-    time.sleep(1)
+    print('Crawling_Start')
     get_user_link(driver,companies_list)
-    time.sleep(1)
+    print('Crawling Done')
 
-    time.sleep(7)
+    time.sleep(random.randint(5,10))
 
     dfff=pd.DataFrame(users_list)
     header =['Profile_url','Company_name','Company_url']
     records = dfff.values.tolist()
     add_google_sheet(header,records,out,out_number)
-
+    print('Results Saved To :' +str(out)+' On = '+str(out_number) )
 
 def getting_input_data(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'

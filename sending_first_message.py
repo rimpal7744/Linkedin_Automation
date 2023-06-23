@@ -6,7 +6,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
-driver = webdriver.Chrome(ChromeDriverManager().install())
+import random
+from selenium.webdriver.chrome.options import Options
+options = Options()
+options.add_argument('--no-sandbox')
+options.add_argument('--headless')
+driver = webdriver.Chrome(options=options)
 users_list = []
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -28,7 +33,7 @@ def save_cookie(driver, path):
 def login(driver,user_name,pass_word):
     driver.get("://linkedin.com/login")
     # waiting for the page to load
-    time.sleep(5)
+    time.sleep(random.randint(4,8))
     # entering username
     username=driver.find_element(By.XPATH, '//input[@id="username"]')
     username.send_keys(user_name)
@@ -36,9 +41,9 @@ def login(driver,user_name,pass_word):
     # entering  password
     password = driver.find_element(By.XPATH, '//input[@id="password"]')
     password.send_keys(pass_word)
-    time.sleep(4)
+    time.sleep(random.randint(4,8))
     driver.find_element(By.XPATH, '//button[@type="submit"]').click()
-    time.sleep(6)
+    time.sleep(random.randint(4,8))
     #saving login cookies
     path=namee+'.pkl'
     save_cookie(driver,path)
@@ -72,9 +77,9 @@ def withdraw_request(driver,username,password):
     except:
         login(driver,username,password)
 
-    time.sleep(4)
+    time.sleep(random.randint(4,8))
     driver.get('https://www.linkedin.com/mynetwork/invitation-manager/sent/')
-    time.sleep(6)
+    time.sleep(random.randint(4,8))
     data = driver.find_elements(By.XPATH, '//div[@class="invitation-card__details"]')
     withdraw_buttons = driver.find_elements(By.XPATH, '//button[@class="artdeco-button artdeco-button--muted artdeco-button--3 artdeco-button--tertiary ember-view invitation-card__action-btn"]')
 
@@ -85,14 +90,14 @@ def withdraw_request(driver,username,password):
         if len(weeks_splited)>1:
             if int(weeks_splited[0])>=1:
                 withdraw_buttons[data.index(full)].click()
-                time.sleep(5)
+                time.sleep(random.randint(4,8))
                 actions = ActionChains(driver)
                 actions.send_keys(Keys.TAB).perform()
                 actions.send_keys(Keys.TAB).perform()
                 actions.send_keys(Keys.TAB).perform()
-                time.sleep(10)
+                time.sleep(random.randint(10,20))
                 actions.send_keys(Keys.ENTER).perform()
-                time.sleep(10)
+                time.sleep(random.randint(20,40))
 
 
 def checking_connections(driver,links_list,names_list,username,password,result_sheet,result_sheet_number):
@@ -102,9 +107,10 @@ def checking_connections(driver,links_list,names_list,username,password,result_s
         load_cookie(driver,username)
     except:
         login(driver,username,password)
-    time.sleep(4)
+        print('Logged_in')
+    time.sleep(random.randint(4,8))
     driver.get('https://www.linkedin.com/mynetwork/invite-connect/connections/')
-    time.sleep(6)
+    time.sleep(random.randint(4,8))
     data = driver.find_elements(By.XPATH, '//div[@class="mn-connection-card__details"]')
 
 
@@ -119,7 +125,7 @@ def checking_connections(driver,links_list,names_list,username,password,result_s
     for user_name in accepted_names:
         profile_link=links_list[names_list.index(user_name)]
         driver.get(profile_link)
-        time.sleep(10)
+        time.sleep(random.randint(10,15))
 
         contact=driver.find_element(By.XPATH,'//ul[@class="_contact-info-list_hqxetg"]')
 
@@ -131,13 +137,13 @@ def checking_connections(driver,links_list,names_list,username,password,result_s
                 target_email=email_search[7:]
                 # print(target_email,'gggggg')
         driver.find_element(By.XPATH,'//button[@class="ember-view _button_ps32ck _small_ps32ck _primary_ps32ck _emphasized_ps32ck _left_ps32ck _container_iq15dg _message-cta_1xow7n _cta_1xow7n _medium-cta_1xow7n"]').click()
-        time.sleep(3)
+        time.sleep(random.randint(4,8))
 
-        time.sleep(5)
+        time.sleep(random.randint(4,8))
         driver.find_element(By.XPATH, '//textarea[@placeholder="Type your message here…"]').send_keys('Hi How are you?')
-        time.sleep(5)
+        time.sleep(random.randint(4,8))
         # driver.find_element(By.XPATH, '//button[@aria-describedby="artdeco-hoverable-artdeco-gen-43"]').click()
-        time.sleep(10)
+        time.sleep(random.randint(10,15))
         record=[user_name,profile_link,target_email]
         header=['Name','Profile_link','Email']
         add_to_google_sheet(header,record,result_sheet,result_sheet_number)

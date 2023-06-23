@@ -8,6 +8,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 import random
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from selenium.webdriver.chrome.options import Options
+options = Options()
+options.add_argument('--no-sandbox')
+options.add_argument('--headless')
 users_list = []
 
 
@@ -26,7 +30,7 @@ def save_cookie(driver, path):
 def login(driver,userr,passw):
     driver.get("https://linkedin.com/login")
     # waiting for the page to load
-    time.sleep(5)
+    time.sleep(random.randint(5,12))
     # #entering username
     username=driver.find_element(By.XPATH, '//input[@id="username"]')
     username.send_keys(userr)
@@ -34,10 +38,10 @@ def login(driver,userr,passw):
     # entering  password
     password = driver.find_element(By.XPATH, '//input[@id="password"]')
     password.send_keys(passw)
-    time.sleep(4)
+    time.sleep(random.randint(5,12))
     driver.find_element(By.XPATH, '//button[@type="submit"]').click()
 
-    time.sleep(6)
+    time.sleep(random.randint(5,12))
     path=namee+'.pkl'
     save_cookie(driver,path)
 
@@ -134,22 +138,23 @@ def add_to_googlesheet(header,record,out,out_number):
 
 
 def main(df,username,password,out_name,out_number):
-    driver = webdriver.Chrome(ChromeDriverManager().install())
+    # driver = webdriver.Chrome(ChromeDriverManager().install())
+    driver = webdriver.Chrome(options=options)
     updated=getting_links(df)
     df['Company_url']=updated
     driver.get('https://www.linkedin.com')
-    time.sleep(5)
+    time.sleep(random.randint(5,12))
     try:
         user=username.split('@')[0]
         driver=load_cookie(driver,user)
     except:
         login(driver,username,password)
-    time.sleep(3)
+    time.sleep(random.randint(5,12))
 
-    time.sleep(3)
     count=1
     for i in updated[:10]:
         try:
+            print('Getting_information_from_company: '+str(count))
             employess = []
             driver.get(i+'/about')
             time.sleep(random.randint(4,7))
@@ -189,7 +194,6 @@ def main(df,username,password,out_name,out_number):
                 if count==1:
                     header=['Company','Companyurl','Industry','Headquators','Size','Founded','Phone','Website','Ceo_url','final','Message']
                     record=list(employess[0])
-                    print(record,'hhh')
                     add_to_googlesheet(header, record,out_name,out_number)
                     count+=1
                 else:
@@ -199,6 +203,8 @@ def main(df,username,password,out_name,out_number):
                     count+=1
         except:
             pass
+
+    print('Information_Crawling_Done')
 
 
 def getting_input_data(SHEET_ID,SHEET_NAME):
@@ -216,7 +222,6 @@ def getting_input_data(SHEET_ID,SHEET_NAME):
 def getting_input_dataframe(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{str(SHEET_ID)}/gviz/tq?tqx=out:csv&sheet={str(SHEET_NAME)}'
     df = pd.read_csv(url)
-    print(df)
     return df
 
 
