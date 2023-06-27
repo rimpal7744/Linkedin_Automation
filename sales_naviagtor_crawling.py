@@ -55,6 +55,7 @@ def get_user_link(driver,compannys):
         try:
             for i in range(0,5):
                 alll_users = driver.find_elements(By.XPATH, '//div[@class="artdeco-entity-lockup__content ember-view"]')
+                print(alll_users)
                 (alll_users[-1]).location_once_scrolled_into_view
 
                 for a in alll_users:
@@ -102,7 +103,7 @@ def add_google_sheet(header,records,out,number):
 
 def main(search,username,password,out,out_number):
     # driver = webdriver.Chrome(ChromeDriverManager().install())
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome()
     driver.get('https://www.linkedin.com')
     time.sleep(random.randint(5,10))
     # parameters
@@ -114,6 +115,7 @@ def main(search,username,password,out,out_number):
         login(driver,username,password)
         print('Logged In')
     time.sleep(random.randint(5,8))
+    # exit()
     driver.get(search)
     time.sleep(random.randint(10,15))
 
