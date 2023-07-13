@@ -32,10 +32,10 @@ def send_email_multiple(subject, body, sender, recipients, password):
 
 
 
-
-sender=input('Enter your Email:')
-password=input('Enter your Password:')
-subject=input('Enter Subject: ')
-body=input('Enter Message Body: ')
-recipients=read_contacts()
-send_email_multiple(subject, body, sender, recipients, password)
+def send_mail(recipients,username,body,subject):
+    sender=input('Enter your Email:')
+    password=input('Enter your Password:')
+    subject=input('Enter Subject: ')
+    body=input('Enter Message Body: ')
+    recipients=read_contacts()
+    send_email_multiple(subject, body, sender, recipients, password)

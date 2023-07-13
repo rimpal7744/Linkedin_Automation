@@ -7,10 +7,12 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 import random
+from datetime import datetime
 from selenium.webdriver.chrome.options import Options
+from sending_emails import send_mail
 options = Options()
 options.add_argument('--no-sandbox')
-options.add_argument('--headless')
+options.add_argument('--headless=new')
 driver = webdriver.Chrome(options=options)
 users_list = []
 import gspread
@@ -86,9 +88,10 @@ def withdraw_request(driver,username,password):
     for full in data:
         full_text = full.text.split('\n')
         sent_time = full_text[4]
+        print(sent_time)
         weeks_splited=sent_time.split('week')
         if len(weeks_splited)>1:
-            if int(weeks_splited[0])>=1:
+            if int(weeks_splited[0])>=3:
                 withdraw_buttons[data.index(full)].click()
                 time.sleep(random.randint(4,8))
                 actions = ActionChains(driver)
@@ -98,9 +101,30 @@ def withdraw_request(driver,username,password):
                 time.sleep(random.randint(10,20))
                 actions.send_keys(Keys.ENTER).perform()
                 time.sleep(random.randint(20,40))
+def add_logs(out,number,text):
+    # define the scope
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
+    # add credentials to the account
+    creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+    print(out,number)
+    # authorize the clientsheet
+    client = gspread.authorize(creds)
+    # spreadsheet = client.create('mysheet2')
+    # get the instance of the Spreadsheet
+    sheet = client.open(out)
+    # get the first sheet of the Spreadsheet
+    number = number.replace('sheet', '')
+    current_sheet = int(number) - 1
+    sheet_instance = sheet.get_worksheet(current_sheet)
+    # get the total number of columns
+    # sheet_instance.clear()
+    date_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
 
-def checking_connections(driver,links_list,names_list,username,password,result_sheet,result_sheet_number):
+    sheet_instance.insert_row([date_time+' = '+ text]) # Write the header row
+    # sheet_instance.insert_rows(records, 2)
+
+def checking_connections(driver,links_list,names_list,username,password,result_sheet,result_sheet_number,message,log_name,log_number):
 
     driver.get("https://linkedin.com")
     try:
@@ -121,7 +145,10 @@ def checking_connections(driver,links_list,names_list,username,password,result_s
         name = full_text[1]
         if name in names_list:
             accepted_names.append(name)
+    detected=len(accepted_names)
+    text='Total accepted profiles : '+str(detected)
 
+    add_logs(log_name, log_number,text)
     for user_name in accepted_names:
         profile_link=links_list[names_list.index(user_name)]
         driver.get(profile_link)
@@ -135,18 +162,21 @@ def checking_connections(driver,links_list,names_list,username,password,result_s
             email_search=e.get_attribute('href')
             if str(email_search)[0:4]=='mail':
                 target_email=email_search[7:]
+                # send_mail(target_email,user_name,email,subject)
                 # print(target_email,'gggggg')
         driver.find_element(By.XPATH,'//button[@class="ember-view _button_ps32ck _small_ps32ck _primary_ps32ck _emphasized_ps32ck _left_ps32ck _container_iq15dg _message-cta_1xow7n _cta_1xow7n _medium-cta_1xow7n"]').click()
         time.sleep(random.randint(4,8))
 
         time.sleep(random.randint(4,8))
-        driver.find_element(By.XPATH, '//textarea[@placeholder="Type your message here…"]').send_keys('Hi How are you?')
+        driver.find_element(By.XPATH, '//textarea[@placeholder="Type your message here…"]').send_keys(str(message))
         time.sleep(random.randint(4,8))
         # driver.find_element(By.XPATH, '//button[@aria-describedby="artdeco-hoverable-artdeco-gen-43"]').click()
         time.sleep(random.randint(10,15))
         record=[user_name,profile_link,target_email]
         header=['Name','Profile_link','Email']
         add_to_google_sheet(header,record,result_sheet,result_sheet_number)
+    add_logs(log_name, log_number, "Script End")
+
 
 def getting_input_data(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
@@ -158,13 +188,21 @@ def getting_input_data(SHEET_ID,SHEET_NAME):
     input_sheet_number = df.loc[df['keys'] == 'third_crawler_saving_sheet_number', 'value'].iloc[0]
     result_sheet = df.loc[df['keys'] == 'fourth_crawler_saving_sheet_name', 'value'].iloc[0]
     result_sheet_number = df.loc[df['keys'] == 'fourth_crawler_saving_sheet_number', 'value'].iloc[0]
-    return username,password,sheetid,input_sheet_number,result_sheet,result_sheet_number
+    log_sheet_name = df.loc[df['keys'] == 'fourth_crawler_log_sheet_name', 'value'].iloc[0]
+    log_sheet_number = df.loc[df['keys'] == 'fourth_crawler_log_sheet_number', 'value'].iloc[0]
+    first_message = df.loc[df['keys'] == 'message1', 'value'].iloc[0]
+    email= df.loc[df['keys'] == 'email', 'value'].iloc[0]
+    return username,password,sheetid,input_sheet_number,result_sheet,result_sheet_number,log_sheet_name,log_sheet_number,first_message,email
 
 def getting_input_dataframe(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
     df = pd.read_csv(url)
     return df
 
+def already_sent(SHEET_ID,SHEET_NAME):
+    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
+    df = pd.read_csv(url)
+    return df
 
 
 if __name__ == "__main__":
@@ -172,9 +210,10 @@ if __name__ == "__main__":
     SHEET_ID = '1l1Q2t81LLk-GB-9qtQyqSDezOxdkKb2hzYXHkjxm59E'
     SHEET_NAME = 'sheet1'
 
-    username,password,input_sheetid,input_sheet_number,result_sheet,result_sheet_number=getting_input_data(SHEET_ID,SHEET_NAME)
+    username,password,input_sheetid,input_sheet_number,result_sheet,result_sheet_number,log_name,log_number,message,email=getting_input_data(SHEET_ID,SHEET_NAME)
     df=getting_input_dataframe(input_sheetid,input_sheet_number)
     links_list = df['User_link'].values.tolist()
     name_list = df['Name'].values.tolist()
+    add_logs(log_name,log_number,'Checking to withdraw pending requests')
     withdraw_request(driver,username,password)
-    checking_connections(driver,links_list,name_list,username,password,result_sheet,result_sheet_number)
+    checking_connections(driver,links_list,name_list,username,password,result_sheet,result_sheet_number,message,log_name,log_number,email)

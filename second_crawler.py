@@ -6,12 +6,13 @@ import time
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import random
+from datetime import datetime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from selenium.webdriver.chrome.options import Options
 options = Options()
 options.add_argument('--no-sandbox')
-options.add_argument('--headless')
+options.add_argument('--headless=new')
 users_list = []
 
 
@@ -134,13 +135,36 @@ def add_to_googlesheet(header,record,out,out_number):
         sheet_instance.clear()
         sheet_instance.insert_row(header,1)
         sheet_instance.insert_row(record, 2)
+def add_logs(out,number,text):
+    # define the scope
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+
+    # add credentials to the account
+    creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+    print(out,number)
+    # authorize the clientsheet
+    client = gspread.authorize(creds)
+    # spreadsheet = client.create('mysheet2')
+    # get the instance of the Spreadsheet
+    sheet = client.open(out)
+    # get the first sheet of the Spreadsheet
+    number = number.replace('sheet', '')
+    current_sheet = int(number) - 1
+    sheet_instance = sheet.get_worksheet(current_sheet)
+    # get the total number of columns
+    # sheet_instance.clear()
+    date_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+
+    sheet_instance.insert_row([date_time+' = '+ text]) # Write the header row
+    # sheet_instance.insert_rows(records, 2)
 
 
-
-def main(df,username,password,out_name,out_number):
+def main(df,username,password,out_name,out_number,logs_name,logs_nu):
     # driver = webdriver.Chrome(ChromeDriverManager().install())
     driver = webdriver.Chrome(options=options)
     updated=getting_links(df)
+    total_companies=len(updated)
+    add_logs(logs_name, logs_number, 'Total_number_from_company: ' + str(total_companies))
     df['Company_url']=updated
     driver.get('https://www.linkedin.com')
     time.sleep(random.randint(5,12))
@@ -155,6 +179,7 @@ def main(df,username,password,out_name,out_number):
     for i in updated[:10]:
         try:
             print('Getting_information_from_company: '+str(count))
+            add_logs(logs_name,logs_number,'Getting_information_from_company: '+str(count))
             employess = []
             driver.get(i+'/about')
             time.sleep(random.randint(4,7))
@@ -201,10 +226,11 @@ def main(df,username,password,out_name,out_number):
                     record=list(employess[0])
                     add_to_googlesheet(header,record,out_name,out_number)
                     count+=1
-        except:
+        except Exception as e:
+            add_logs(logs_name, logs_number, str(e))
             pass
-
-    print('Information_Crawling_Done')
+    add_logs(logs_name,logs_number,'Information_Crawling_Done')
+    # print('Information_Crawling_Done')
 
 
 def getting_input_data(SHEET_ID,SHEET_NAME):
@@ -216,10 +242,13 @@ def getting_input_data(SHEET_ID,SHEET_NAME):
     input_sheet_number = df.loc[df['keys'] == 'first_crawler_saving_sheet_number', 'value'].iloc[0]
     result_sheet = df.loc[df['keys'] == 'second_crawler_saving_sheet_name', 'value'].iloc[0]
     result_sheet_number = df.loc[df['keys'] == 'second_crawler_saving_sheet_number', 'value'].iloc[0]
-    return username, password,sheetid,input_sheet_number ,result_sheet, result_sheet_number
+    logs_sheet_name = df.loc[df['keys'] == 'second_crawler_log_sheet_name', 'value'].iloc[0]
+    logs_sheet_number = df.loc[df['keys'] == 'second_crawler_log_sheet_number', 'value'].iloc[0]
+    return username, password,sheetid,input_sheet_number ,result_sheet, result_sheet_number,logs_sheet_name,logs_sheet_number
     # return username,password,
 
 def getting_input_dataframe(SHEET_ID,SHEET_NAME):
+    print(SHEET_ID,SHEET_NAME)
     url = f'https://docs.google.com/spreadsheets/d/{str(SHEET_ID)}/gviz/tq?tqx=out:csv&sheet={str(SHEET_NAME)}'
     df = pd.read_csv(url)
     return df
@@ -231,6 +260,6 @@ if __name__ == "__main__":
     SHEET_NAME = 'sheet1'
     #Google sheet id and name having extracted links
 
-    username,password,input_sheetid,input_sheet_number, result_sheet, result_sheet_number=getting_input_data(SHEET_ID,SHEET_NAME)
+    username,password,input_sheetid,input_sheet_number, result_sheet, result_sheet_number,logs_name,logs_number=getting_input_data(SHEET_ID,SHEET_NAME)
     input_data=getting_input_dataframe(input_sheetid,input_sheet_number)
-    main(input_data,username,password,result_sheet,result_sheet_number)
+    main(input_data,username,password,result_sheet,result_sheet_number,logs_name,logs_number)

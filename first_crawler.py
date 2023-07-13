@@ -5,13 +5,14 @@ import pandas as pd
 from selenium import webdriver
 import time
 from selenium.webdriver.common.by import By
+from datetime import datetime
 from webdriver_manager.chrome import ChromeDriverManager
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from selenium.webdriver.chrome.options import Options
 options = Options()
 options.add_argument('--no-sandbox')
-options.add_argument('--headless')
+options.add_argument('--headless=new')
 companies_list=[]
 users_list = []
 
@@ -48,10 +49,11 @@ def login(driver,userr,passs):
     save_cookie(driver,path)
 
 
-def get_user_link(driver,compannys):
+def get_user_link(driver,compannys,logs_sheet,logs_number):
     c_list=list(map(lambda x: x.lower(),compannys))
     for m in range(0,2):
         print('Crawling from page = '+str(m+1))
+        add_logs(logs_sheet, logs_number, 'Crawling from page = '+str(m+1))
         try:
             for i in range(0,5):
                 alll_users = driver.find_elements(By.XPATH, '//div[@class="artdeco-entity-lockup__content ember-view"]')
@@ -99,9 +101,30 @@ def add_google_sheet(header,records,out,number):
     sheet_instance.insert_row(header, 1)  # Write the header row
     sheet_instance.insert_rows(records, 2)
 
+def add_logs(out,number,text):
+    # define the scope
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
+    # add credentials to the account
+    creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+    print(out,number)
+    # authorize the clientsheet
+    client = gspread.authorize(creds)
+    # spreadsheet = client.create('mysheet2')
+    # get the instance of the Spreadsheet
+    sheet = client.open(out)
+    # get the first sheet of the Spreadsheet
+    number = number.replace('sheet', '')
+    current_sheet = int(number) - 1
+    sheet_instance = sheet.get_worksheet(current_sheet)
+    # get the total number of columns
+    # sheet_instance.clear()
+    date_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
 
-def main(search,username,password,out,out_number):
+    sheet_instance.insert_row([date_time+' = '+ text]) # Write the header row
+    # sheet_instance.insert_rows(records, 2)
+
+def main(search,username,password,out,out_number,logs_sheet,logs_number):
     # driver = webdriver.Chrome(ChromeDriverManager().install())
     driver = webdriver.Chrome()
     driver.get('https://www.linkedin.com')
@@ -111,17 +134,21 @@ def main(search,username,password,out,out_number):
         user=username.split('@')[0]
         driver=load_cookie(driver,user)
         print('logged in from cookies')
+        add_logs(logs_sheet,logs_number,'logged in from cookies')
     except:
         login(driver,username,password)
         print('Logged In')
+        add_logs(logs_sheet, logs_number, 'Logged In')
     time.sleep(random.randint(5,8))
     # exit()
     driver.get(search)
     time.sleep(random.randint(10,15))
 
     print('Crawling_Start')
-    get_user_link(driver,companies_list)
-    print('Crawling Done')
+    add_logs(logs_sheet, logs_number, 'Crawling_Start')
+    get_user_link(driver,companies_list,logs_sheet,logs_number)
+    # print('Crawling Done')
+    add_logs(logs_sheet, logs_number, 'Crawling Done')
 
     time.sleep(random.randint(5,10))
 
@@ -129,7 +156,8 @@ def main(search,username,password,out,out_number):
     header =['Profile_url','Company_name','Company_url']
     records = dfff.values.tolist()
     add_google_sheet(header,records,out,out_number)
-    print('Results Saved To :' +str(out)+' On = '+str(out_number) )
+    # print('Results Saved To :' +str(out)+' On = '+str(out_number) )
+    add_logs(logs_sheet, logs_number, 'Results Saved To :' +str(out)+' On = '+str(out_number) )
 
 def getting_input_data(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
@@ -141,14 +169,19 @@ def getting_input_data(SHEET_ID,SHEET_NAME):
     sales_urls=df.loc[df['keys'] == 'sales_navigator_url', 'value'].iloc[0]
     result_sheet=df.loc[df['keys'] == 'first_crawler_saving_sheet_name', 'value'].iloc[0]
     result_sheet_number=df.loc[df['keys'] == 'first_crawler_saving_sheet_number', 'value'].iloc[0]
-    return username,password,sales_urls,result_sheet,result_sheet_number
+    log_sheet=df.loc[df['keys'] == 'first_crawler_log_sheet_name', 'value'].iloc[0]
+    log_sheet_number=df.loc[df['keys'] == 'first_crawler_log_sheet_number', 'value'].iloc[0]
+    return username,password,sales_urls,result_sheet,result_sheet_number,log_sheet,log_sheet_number
 
 
 if __name__ == "__main__":
     SHEET_ID = '1l1Q2t81LLk-GB-9qtQyqSDezOxdkKb2hzYXHkjxm59E'
     SHEET_NAME = 'sheet1'
-    username,password,search_link,out_sheet,out_number=getting_input_data(SHEET_ID,SHEET_NAME)
+    username,password,search_link,out_sheet,out_number,logs_name,logs_number=getting_input_data(SHEET_ID,SHEET_NAME)
     print(username,password,search_link)
+    print(logs_name,logs_number)
     # search_link='https://www.linkedin.com/sales/search/people?query=(recentSearchParam%3A(id%3A2163387729%2CdoLogHistory%3Atrue)%2Cfilters%3AList((type%3ACOMPANY_HEADCOUNT%2Cvalues%3AList((id%3AD%2Ctext%3A51-200%2CselectionType%3AINCLUDED)%2C(id%3AE%2Ctext%3A201-500%2CselectionType%3AINCLUDED)))%2C(type%3ACOMPANY_HEADQUARTERS%2Cvalues%3AList((id%3A102748797%2Ctext%3ATexas%252C%2520United%2520States%2CselectionType%3AINCLUDED)))%2C(type%3ATITLE%2Cvalues%3AList((id%3A8%2Ctext%3AChief%2520Executive%2520Officer%2CselectionType%3AINCLUDED))%2CselectedSubFilter%3ACURRENT)%2C(type%3AINDUSTRY%2Cvalues%3AList((id%3A4%2Ctext%3ASoftware%2520Development%2CselectionType%3AINCLUDED)%2C(id%3A96%2Ctext%3AIT%2520Services%2520and%2520IT%2520Consulting%2CselectionType%3AINCLUDED)))))&sessionId=xVW%2FE%2FYTSo%2BsEZ9VMHQwDg%3D%3D&viewAllFilters=true'
     # output='result.csv'
-    main(search_link,username,password,out_sheet,out_number)
+    main(search_link,username,password,out_sheet,out_number,logs_name,logs_number)
+
+

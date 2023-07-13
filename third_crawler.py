@@ -14,7 +14,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 options = Options()
 options.add_argument('--no-sandbox')
-options.add_argument('--headless')
+options.add_argument('--headless=new')
 
 driver = webdriver.Chrome(options=options)
 # driver = webdriver.Chrome(ChromeDriverManager().install())
@@ -53,6 +53,27 @@ def login(driver,user_name,pass_word):
     #saving login cookies
     path=namee+'.pkl'
     save_cookie(driver,path)
+
+def add_logs(out,number,text):
+    # define the scope
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    # add credentials to the account
+    creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+    print(out,number)
+    # authorize the clientsheet
+    client = gspread.authorize(creds)
+    # spreadsheet = client.create('mysheet2')
+    # get the instance of the Spreadsheet
+    sheet = client.open(out)
+    # get the first sheet of the Spreadsheet
+    number = number.replace('sheet', '')
+    current_sheet = int(number) - 1
+    sheet_instance = sheet.get_worksheet(current_sheet)
+    # get the total number of columns
+    # sheet_instance.clear()
+    date_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    sheet_instance.insert_row([date_time+' = '+ text]) # Write the header row
+    # sheet_instance.insert_rows(records, 2)
 
 
 def getting_info(user_link):
@@ -94,7 +115,6 @@ def add_to_googlesheet(record,header,out,out_number):
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     # add credentials to the account
     creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
-
     # authorize the clientsheet
     client = gspread.authorize(creds)
     # spreadsheet = client.create('mysheet2')
@@ -113,7 +133,7 @@ def add_to_googlesheet(record,header,out,out_number):
         sheet_instance.insert_row(header, 1)
         sheet_instance.insert_row(record, 2)
 
-def sending_requests(driver,users_data,username,password,out_name,out_number):
+def sending_requests(driver,users_data,username,password,out_name,out_number,log_name,log_number):
     # print(users_data)
     driver.get("https://linkedin.com")
     try:
@@ -121,18 +141,20 @@ def sending_requests(driver,users_data,username,password,out_name,out_number):
     except:
         login(driver,username,password)
     print('logged_in')
+    add_logs(log_name,log_number,'logged_in')
     time.sleep(4)
-    try:
-        with open(r'requests_sending.txt', 'r') as f:
-            start_number = f.read()
-    except:
-        start_number=0
-
+    # try:
+    #     with open(r'requests_sending.txt', 'r') as f:
+    #         start_number = f.read()
+    # except:
+    #     start_number=0
+    start_number=0
     for user_link in users_data[int(start_number):]:
         user_number=users_data.index(user_link)
-        print('Sending_connection_rrequest_to_user_number: '+str(user_number))
-        with open(r'requests_sending.txt', 'w') as f:
-            f.write(str(user_number))
+        # print('Sending_connection_rrequest_to_user_number: '+str(user_number))
+        add_logs(log_name, log_number, 'Sending_connection_rrequest_to_user_number: '+str(user_number))
+        # with open(r'requests_sending.txt', 'w') as f:
+        #     f.write(str(user_number))
         try:
             driver.get(user_link)
             time.sleep(random.randint(6,10))
@@ -141,7 +163,7 @@ def sending_requests(driver,users_data,username,password,out_name,out_number):
             driver.find_element(By.XPATH,'//button[@class="ember-view _button_ps32ck _small_ps32ck _tertiary_ps32ck _circle_ps32ck _container_iq15dg _overflow-menu--trigger_1xow7n"]').click()
             time.sleep(3)
             element=driver.find_element(By.XPATH,'//div[@class="_container_x5gf48 _visible_x5gf48 _container_iq15dg _raised_1aegh9"]')
-            print(element.text,'ffffffff')
+            # print(element.text,'ffffffff')
             if 'Connect — Pending' not in element.text.split('\n'):
 
                 element.send_keys(Keys.TAB)
@@ -164,6 +186,7 @@ def sending_requests(driver,users_data,username,password,out_name,out_number):
         except:
             pass
 
+    add_logs(log_name, log_number, 'Script_END')
 def getting_input_data(SHEET_ID,SHEET_NAME):
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}'
     df = pd.read_csv(url)
@@ -174,7 +197,9 @@ def getting_input_data(SHEET_ID,SHEET_NAME):
     input_sheet_number = df.loc[df['keys'] == 'second_crawler_saving_sheet_number', 'value'].iloc[0]
     result_sheet = df.loc[df['keys'] == 'third_crawler_saving_sheet_name', 'value'].iloc[0]
     result_sheet_number = df.loc[df['keys'] == 'third_crawler_saving_sheet_number', 'value'].iloc[0]
-    return username, password, sheetid, input_sheet_number, result_sheet, result_sheet_number
+    log_sheet_name = df.loc[df['keys'] == 'third_crawler_log_sheet_name', 'value'].iloc[0]
+    log_sheet_number = df.loc[df['keys'] == 'third_crawler_log_sheet_number', 'value'].iloc[0]
+    return username, password, sheetid, input_sheet_number, result_sheet, result_sheet_number,log_sheet_name,log_sheet_number
     # return username,password
 
 def getting_input_dataframe(SHEET_ID,SHEET_NAME):
@@ -191,7 +216,7 @@ if __name__ == "__main__":
     # input_sheetid = '1i1XNuxrmtAxJo3fDli_ex3LRb_3rnFRcry3n6_LErig'
     # input_sheetid='1ZyRVdZkn7zXxmu79D9LOR31piijIp0MzPf7J4cMnOs8'
     # input_sheet_number = 'sheet2'
-    username, password ,input_sheetid,input_sheet_number,result_sheet, result_sheet_number= getting_input_data(SHEET_ID, SHEET_NAME)
+    username, password ,input_sheetid,input_sheet_number,result_sheet, result_sheet_number,log_name,log_number= getting_input_data(SHEET_ID, SHEET_NAME)
     input_data = getting_input_dataframe(input_sheetid, input_sheet_number)
     data_list=input_data['Ceo_url'].values.tolist()
-    sending_requests(driver,data_list,username,password,result_sheet,result_sheet_number)
+    sending_requests(driver,data_list,username,password,result_sheet,result_sheet_number,log_name,log_number)
