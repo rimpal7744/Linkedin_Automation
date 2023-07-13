@@ -126,7 +126,7 @@ def add_logs(out,number,text):
 
 def main(search,username,password,out,out_number,logs_sheet,logs_number):
     # driver = webdriver.Chrome(ChromeDriverManager().install())
-    driver = webdriver.Chrome()
+    driver = webdriver.Chrome(options=options)
     driver.get('https://www.linkedin.com')
     time.sleep(random.randint(5,10))
     # parameters
